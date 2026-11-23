@@ -1,0 +1,53 @@
+// DAX measures for a Power BI build on the gold marts. Tables keep their mart names.
+// Every rate shares the eligible denominator of its own fact. Thresholds are demo assumptions.
+
+// ---- Customer OTIF (fct_order_line) ----
+Eligible Lines = CALCULATE ( COUNTROWS ( fct_order_line ), fct_order_line[is_eligible] = TRUE () )
+On Time Lines = CALCULATE ( [Eligible Lines], fct_order_line[is_on_time] = TRUE () )
+In Full Lines = CALCULATE ( [Eligible Lines], fct_order_line[is_in_full] = TRUE () )
+OTIF Lines = CALCULATE ( [Eligible Lines], fct_order_line[is_otif_original] = TRUE () )
+OTIF Lines (Latest Promise) = CALCULATE ( [Eligible Lines], fct_order_line[is_otif_latest] = TRUE () )
+On Time % = DIVIDE ( [On Time Lines], [Eligible Lines] )
+In Full % = DIVIDE ( [In Full Lines], [Eligible Lines] )
+OTIF % = DIVIDE ( [OTIF Lines], [Eligible Lines] )
+OTIF % (Latest Promise) = DIVIDE ( [OTIF Lines (Latest Promise)], [Eligible Lines] )
+Re-promise Gap (pts) = [OTIF % (Latest Promise)] - [OTIF %]
+Failed Lines = [Eligible Lines] - [OTIF Lines]
+
+// Pareto: cumulative share of failed lines by SKU, ranked within the current filter context.
+Failed Lines Cumulative % =
+VAR CurrentFailed = [Failed Lines]
+VAR AllFailed = CALCULATE ( [Failed Lines], ALLSELECTED ( dim_sku ) )
+VAR Cum =
+    SUMX (
+        FILTER ( ALLSELECTED ( dim_sku[sku] ), CALCULATE ( [Failed Lines] ) >= CurrentFailed ),
+        CALCULATE ( [Failed Lines] )
+    )
+RETURN DIVIDE ( Cum, AllFailed )
+
+// ---- Order OTIF (fct_order): never an average of line rates ----
+Orders = COUNTROWS ( fct_order )
+Order OTIF % = DIVIDE ( CALCULATE ( [Orders], fct_order[is_otif_original] = TRUE () ), [Orders] )
+
+// ---- Supplier OTIF (fct_po_line) ----
+Eligible PO Lines = CALCULATE ( COUNTROWS ( fct_po_line ), fct_po_line[is_eligible] = TRUE () )
+Supplier OTIF % = DIVIDE ( CALCULATE ( [Eligible PO Lines], fct_po_line[is_otif] = TRUE () ), [Eligible PO Lines] )
+Units Late At Promise = SUMX ( FILTER ( fct_po_line, fct_po_line[is_eligible] ), MAX ( fct_po_line[ordered_qty] - fct_po_line[received_by_promise], 0 ) )
+
+// ---- PPV (fct_ppv): positive is unfavourable ----
+PPV $ = SUM ( fct_ppv[ppv_usd] )
+PPV Price Effect $ = SUM ( fct_ppv[price_effect_usd] )
+PPV FX Effect $ = SUM ( fct_ppv[fx_effect_usd] )
+Standard Spend $ = CALCULATE ( SUM ( fct_ppv[standard_spend_usd] ), fct_ppv[is_credit_note] = FALSE () )
+PPV % = DIVIDE ( [PPV $], [Standard Spend $] )
+PPV Bridge Check = [PPV $] - [PPV Price Effect $] - [PPV FX Effect $]   // must be 0 under any filter
+
+// ---- Returns (fct_return) ----
+Returns Received = CALCULATE ( COUNTROWS ( fct_return ), NOT ISBLANK ( fct_return[received_at] ) )
+Median Turnaround Days = MEDIAN ( fct_return[turnaround_days] )
+P90 Turnaround Days = PERCENTILE.INC ( fct_return[turnaround_days], 0.9 )
+Open Returns = CALCULATE ( COUNTROWS ( fct_return ), fct_return[stage] IN { "Awaiting inspection", "Inspected, no disposition" } )
+Open Returns 30+ Days = CALCULATE ( [Open Returns], fct_return[open_age_days] >= 30 )
+Recovery Value $ = SUM ( fct_return[recovery_value_usd] )
+Open Recoverable $ = SUM ( fct_return[open_recoverable_usd] )
+Cost Per Return $ = DIVIDE ( SUM ( fct_return[handling_cost_usd] ), [Returns Received] )

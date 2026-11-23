@@ -1,0 +1,39 @@
+name: order_reliability
+version: 1.0.0
+config-version: 2
+profile: order_reliability
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: target
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Demo assumptions, all configurable. Change one and rerun `make dbt` to see its consequence.
+  otif_promise_policy: original      # original | latest: which promise date the headline OTIF is measured against
+  abc_a_share: 0.80                  # ABC bands on 12-month order value: A = first 80%, B = next 15%, C = rest
+  abc_b_share: 0.95
+  incremental_lookback_days: 3       # reprocess events ingested in the last N days on every incremental run
+  carrier_grace_days: 1              # transit longer than standard + grace counts as a carrier delay
+  # Returns: recovery value as a share of standard cost, and handling cost per step (USD per return)
+  recovery_restock: 0.95
+  recovery_refurbish: 0.55
+  recovery_return_to_vendor: 0.80
+  recovery_recycle: 0.03
+  cost_receive: 4.0
+  cost_inspect: 6.0
+  cost_refurbish: 18.0
+  cost_recycle: 2.5
+
+models:
+  order_reliability:
+    staging:
+      +schema: silver
+      +materialized: table
+    intermediate:
+      +schema: silver
+      +materialized: table
+    marts:
+      +schema: gold
+      +materialized: table

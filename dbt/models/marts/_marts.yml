@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: fct_order_line
+    description: One customer order line with cumulative deliveries, both promise policies and a failure reason.
+    columns:
+      - name: order_line_id
+        tests: [unique, not_null]
+      - name: eligible_qty
+        tests: [not_null]
+      - name: failure_reason
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Short shipment (stock)', 'Late dispatch (warehouse)', 'Carrier transit delay', 'Not delivered yet', 'Other late delivery']
+  - name: fct_order
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+  - name: fct_po_line
+    columns:
+      - name: po_line_id
+        tests: [unique, not_null]
+  - name: fct_ppv
+    columns:
+      - name: invoice_line_id
+        tests: [unique, not_null]
+  - name: fct_return
+    columns:
+      - name: rma_id
+        tests: [unique, not_null]
+      - name: stage
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Awaiting receipt', 'Awaiting inspection', 'Inspected, no disposition', 'Closed']
+  - name: dim_sku
+    columns:
+      - name: sku
+        tests: [unique, not_null]
+  - name: int_deliveries
+    columns:
+      - name: event_id
+        tests: [unique, not_null]
+  - name: rpt_exec_scorecard
+    columns:
+      - name: month
+        tests: [unique, not_null]

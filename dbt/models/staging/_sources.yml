@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Parquet files written by generator/simulate.py, as the source systems deliver them. Every number is synthetic.
+    meta:
+      external_location: "{{ env_var('RAW_DIR', '../data/raw') }}/{name}.parquet"
+    tables:
+      - name: order_lines
+      - name: order_events
+        description: Immutable event log (order_line_created, line_cancelled, promise_changed, shipment_delivered). Retries repeat an event_id.
+      - name: shipments
+      - name: warehouse_scans
+      - name: skus
+      - name: sku_sources
+      - name: customers
+      - name: sites
+      - name: suppliers
+      - name: carriers
+      - name: purchase_orders
+      - name: receipts
+      - name: invoices
+      - name: fx_rates
+      - name: standard_fx
+      - name: return_events
